@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 
-from flask import Flask, jsonify, request
+from flask import Flask, request
 
 import config
-from iopgps_service import IopgpsError, get_cached_stream_data
-from log_store import log_api_call
+from iopgps_service import IopgpsError, get_cached_stream_data, get_playback_data
+from log_store import respond
 
 app = Flask(__name__)
 
@@ -18,60 +18,36 @@ def live_stream():
     channel = body.get("channel")
     ip_address = request.remote_addr
 
-    def _respond(success, status_code, message=None, cache_hit=None, data=None):
-        response_body = {"success": success}
-        if success:
-            response_body.update({"url": data})
-        response_body.update({"imei": imei, "message": message})
-
-        log_api_call(
-            imei=imei,
-            type = "live-stream",
-            start_date="",
-            end_date="",
-            accesskey=accesskey,
-            ip_address=ip_address,
-            cache_hit=cache_hit,
-            success=success,
-            status_code=status_code,
-            request_body=body,
-            response_body=response_body,
-            request_time=request_time,
-            response_time=datetime.now(timezone.utc),
-            message=message,
-        )
-        return jsonify(response_body), status_code
-
     # ---- Authorize the caller against OUR API ----
     if not accesskey or accesskey not in config.VALID_ACCESS_KEYS:
-        return _respond(False, 401, "Invalid or missing accesskey")
+        return respond(False, 401, "Invalid or missing accesskey", body, ip_address,request_time)
 
     # ---- Validate input ----
     if not imei:
-        return _respond(False, 400, "imei is required")
+        return respond(False, 400, "imei is required", body, ip_address,request_time)
     # ---- Validate input ----
     if not channel:
-        return _respond(False, 400, "channel is required")
+        return respond(False, 400, "channel is required", body, ip_address,request_time)
     try:
         channel = int(channel)
     except (TypeError, ValueError):
         msg = "channel must be integers."
-        return _respond(False, 400, msg)
+        return respond(False, 400, msg, body, ip_address,request_time)
 
     # ---- Get the stream data, reusing cached token/url where still valid ----
     try:
         stream_data, cache_hit = get_cached_stream_data(imei, channel)
     except IopgpsError as e:
         print(f"IopgpsError: {str(e)}")
-        return _respond(False, 502, "API Error, Please contact us.")
+        return respond(False, 502, "API Error, Please contact us.", body, ip_address,request_time)
     except Exception as e:
         print(f"Unexpected error: {e}")
-        return _respond(False, 500, "API Error, Please contact us.")
+        return respond(False, 500, "API Error, Please contact us.", body, ip_address,request_time)
     if stream_data["success"]:
         url = stream_data["url"]
     else:
         url = ""
-    return _respond(stream_data['success'], stream_data['code'], stream_data['message'], cache_hit=cache_hit, data=url)
+    return respond(stream_data['success'], stream_data['code'], stream_data['message'], body, ip_address,request_time, cache_hit=cache_hit, data=url)
 
 
 @app.route("/api/playback", methods=["POST"])
@@ -86,42 +62,16 @@ def playback():
     channel = body.get("channel")
     ip_address = request.remote_addr
 
-    def _respond(success, status_code, message=None, cache_hit=None, data=None):
-        response_body = {"success": success}
-        if success:
-            response_body.update({"imei": imei, "data": data})
-        else:
-            response_body["message"] = message
-
-        log_api_call(
-            imei=imei,
-            type = "playback",
-            start_date=start_date,
-            end_date=end_date,
-            accesskey=accesskey,
-            ip_address=ip_address,
-            cache_hit=cache_hit,
-            success=success,
-            status_code=status_code,
-            request_body=body,
-            response_body=response_body,
-            request_time=request_time,
-            response_time=datetime.now(timezone.utc),
-            message=message,
-        )
-        return jsonify(response_body), status_code
-
     # ---- Authorize the caller against OUR API ----
     if not accesskey or accesskey not in config.VALID_ACCESS_KEYS:
-        return _respond(False, 401, "Invalid or missing accesskey")
+        return respond(False, 401, "Invalid or missing accesskey", body, ip_address,request_time, "playback")
 
     # ---- Validate input ----
     if not imei:
-        return _respond(False, 400, "imei is required")
+        return respond(False, 400, "imei is required", body, ip_address,request_time, "playback")
 
     if not channel:
-        return _respond(False, 400, "channel is required")
-
+        return respond(False, 400, "channel is required", body, ip_address,request_time, "playback")
 
     try:
         start_time = int(start_date)
@@ -129,17 +79,29 @@ def playback():
         channel = int(channel)
     except (TypeError, ValueError):
         msg = "start_date, end_date, and channel must be integers."
-        return _respond(False, 400, msg)
+        return respond(False, 400, msg, body, ip_address,request_time, "playback")
+
+    if end_time < start_time:
+        return respond(False, 400, "end_date must be greater than or equal to start_date.", body, ip_address,request_time, "playback")
+
+    if end_time - start_time > 10 * 60:
+        return respond(False, 400, "Playback duration must not exceed 10 minutes.", body, ip_address,request_time, "playback")
 
     # ---- Get the stream data, reusing cached token/url where still valid ----
     try:
-        stream_data, cache_hit = get_cached_stream_data(imei, start_time, end_time, channel)
+        stream_data, cache_hit = get_playback_data(imei, start_time, end_time, channel)
     except IopgpsError as e:
-        return _respond(False, 502, str(e))
+        print(f"IopgpsError: {str(e)}")
+        return respond(False, 502, "API Error, Please contact us.", body, ip_address,request_time, "playback")
     except Exception as e:
-        return _respond(False, 500, f"Unexpected error: {e}")
-
-    return _respond(True, 200, cache_hit=cache_hit, data=stream_data)
+        print(f"Unexpected error: {e}")
+        return respond(False, 500, "API Error, Please contact us.", body, ip_address,request_time, "playback")
+    # return _respond(True, 200, cache_hit=cache_hit, data=stream_data)
+    if stream_data["success"]:
+        url = stream_data["url"]
+    else:
+        url = ""
+    return respond(stream_data['success'], stream_data['code'], stream_data['message'], body, ip_address,request_time, "playback" , cache_hit=cache_hit, data=url)
 
 
 if __name__ == "__main__":

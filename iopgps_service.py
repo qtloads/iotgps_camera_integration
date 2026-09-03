@@ -53,6 +53,8 @@ def _login() -> str:
     return token
 
 
+# live streaming functions
+
 def get_cached_stream_data(imei: str, channel : int):
     key = cache.make_stream_key(imei, channel)
 
@@ -95,7 +97,6 @@ def processResponse(data):
     return res
 
 
-
 def _fetch_live_stream_url(token: str, imei: str, channel : int) -> dict:
     url = config.IOPGPS_DOMAIN + "api/dashcam/operation"
     print(token)
@@ -122,5 +123,43 @@ def _fetch_live_stream_url(token: str, imei: str, channel : int) -> dict:
         raise IopgpsError(f"Non-JSON stream response from IOP GPS: {response.text}")
     print(data)
     return data
+
+
+# playback streaming functions
+
+def get_playback_data(imei: str, start_time: int, end_time: int, channel: int):
+    token = get_valid_token()
+    data = _fetch_playback_stream_url(token, imei, start_time, end_time, channel)
+    resData = processResponse(data)
+    return resData, False
+
+
+def _fetch_playback_stream_url(token: str, imei: str, start_time: int, end_time: int, channel : int) -> dict:
+    url = config.IOPGPS_DOMAIN + "api/dashcam/operation"
+    print(token)
+    payload = json.dumps([
+        {
+            "imei": imei,
+            "channel": int(channel),
+            "operatorType": "replay.open",
+            "startTime": start_time,
+            "endTime": end_time,
+            "streamProtocol": config.DEFAULT_STREAM_PROTOCOL,
+        }
+    ])
+    headers = {
+        "accessToken": token,
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(url, headers=headers, data=payload, timeout=config.REQUEST_TIMEOUT)
+
+    try:
+        data = response.json()
+    except ValueError:
+        raise IopgpsError(f"Non-JSON stream response from IOP GPS: {response.text}")
+    print(data)
+    return data
+
 
 
