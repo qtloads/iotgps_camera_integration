@@ -98,12 +98,13 @@ pipeline {
                             cd ${DEPLOY_PATH}
                             IMAGE_TAG=${IMAGE_TAG} docker compose up -d --force-recreate
                             for attempt in \$(seq 1 30); do
-                                status=\$(docker inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}" iotgps-camera-integration)
+                                status=\$(docker inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}" iotgps-camera-integration 2>/dev/null || echo "starting")
                                 if [ "\$status" = "healthy" ] || [ "\$status" = "running" ]; then
-                                    echo "Container is \$status on image ${IMAGE_TAG}"
-                                    curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:5005/api/live-stream | grep -E "400|401"
-                                    docker image prune -af --filter "until=24h" || true
-                                    exit 0
+                                    if curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:5005/api/live-stream | grep -qE "400|401"; then
+                                        echo "Container is \$status on image \${IMAGE_TAG} and passing HTTP checks"
+                                        docker image prune -af --filter "until=24h" || true
+                                        exit 0
+                                    fi
                                 fi
                                 sleep 2
                             done
