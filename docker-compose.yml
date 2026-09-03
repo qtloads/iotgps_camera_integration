@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     ports:
       - "5005:5000"
+    healthcheck:
+      disable: true
     networks:
       - avls
     logging:
