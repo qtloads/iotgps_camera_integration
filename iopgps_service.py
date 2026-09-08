@@ -52,22 +52,7 @@ def _login() -> str:
         raise IopgpsError(f"Failed to obtain login token: {data}")
     return token
 
-
-# live streaming functions
-
-def get_cached_stream_data(imei: str, channel : int):
-    key = cache.make_stream_key(imei, channel)
-
-    cached = cache.get_cached_stream(key)
-    if cached:
-        return cached, True
-
-    token = get_valid_token()
-    data = _fetch_live_stream_url(token, imei, channel)
-    resData = processResponse(data)
-    cache.set_cached_stream(key, resData, config.STREAM_URL_TTL_SECONDS)
-    return resData, False
-
+# process response, eject only url and channel
 
 def processResponse(data):
     res = {}
@@ -97,9 +82,26 @@ def processResponse(data):
     return res
 
 
+
+# live streaming functions
+
+def get_cached_stream_data(imei: str, channel : int):
+    key = cache.make_stream_key(imei, channel)
+
+    cached = cache.get_cached_stream(key)
+    if cached:
+        return cached, True
+
+    token = get_valid_token()
+    data = _fetch_live_stream_url(token, imei, channel)
+    resData = processResponse(data)
+    cache.set_cached_stream(key, resData, config.STREAM_URL_TTL_SECONDS)
+    return resData, False
+
+
 def _fetch_live_stream_url(token: str, imei: str, channel : int) -> dict:
     url = config.IOPGPS_DOMAIN + "api/dashcam/operation"
-    print(token)
+    # print(token)
     payload = json.dumps([
         {
             "imei": imei,
@@ -121,7 +123,7 @@ def _fetch_live_stream_url(token: str, imei: str, channel : int) -> dict:
         data = response.json()
     except ValueError:
         raise IopgpsError(f"Non-JSON stream response from IOP GPS: {response.text}")
-    print(data)
+    # print(data)
     return data
 
 
@@ -136,7 +138,7 @@ def get_playback_data(imei: str, start_time: int, end_time: int, channel: int):
 
 def _fetch_playback_stream_url(token: str, imei: str, start_time: int, end_time: int, channel : int) -> dict:
     url = config.IOPGPS_DOMAIN + "api/dashcam/operation"
-    print(token)
+    # print(token)
     payload = json.dumps([
         {
             "imei": imei,
@@ -158,8 +160,90 @@ def _fetch_playback_stream_url(token: str, imei: str, start_time: int, end_time:
         data = response.json()
     except ValueError:
         raise IopgpsError(f"Non-JSON stream response from IOP GPS: {response.text}")
-    print(data)
+    # print(data)
     return data
 
+# get event functions
 
+def get_event_list(imei: str, start_time: int, end_time: int, fileType):
+    token = get_valid_token()
+    data = _fetch_event_list_detail(token, imei, start_time, end_time)
+    resData = processEventResponse(data, fileType)
+    return resData, False
+
+
+def _fetch_event_list_detail(token: str, imei: str, start_time: int, end_time: int) -> dict:
+    url = config.IOPGPS_DOMAIN + "api/device/alarm"
+    # print(token)
+    params = {
+        "imei": imei,
+        "startTime": start_time,
+        "endTime": end_time
+    }
+    headers = {
+        "accessToken": token,
+        "Content-Type": "application/json",
+    }
+
+    response = requests.get(url, headers=headers, params=params, timeout=config.REQUEST_TIMEOUT)
+
+    try:
+        data = response.json()
+    except ValueError:
+        raise IopgpsError(f"Non-JSON stream response from IOP GPS: {response.text}")
+    # print(data)
+    return data
+
+def processEventResponse(data,fileType):
+    res = {}
+    try:
+        if data['code'] == 0:
+            alertDataArray = []
+            res["success"] = True
+            res["code"] = 200
+            res["message"] = "Events data found."
+            alert = data["details"]
+            for al in alert: 
+                alertObj = {}
+                alertObj["imei"] = al["imei"]
+                alertObj["lat"] = al["lat"]
+                alertObj["lng"] = al["lng"]
+                alertObj["time"] = al["time"]
+                alertObj["speed"] = al["speed"]
+                alertObj["alarmCode"] = al["alarmCode"]
+                alertObj["alarmType"] = al["alarmType"]
+                if fileType == "image":
+                    alertObj["url"] = getUrl(al["extData"]["images"])
+                elif fileType == "video":
+                    alertObj["url"] = getUrl(al["extData"]["mp4"])
+                else:
+                    alertObj["url"] = getUrl(al["extData"]["zip"])
+                alertDataArray.append(alertObj)
+            res["alertData"] = alertDataArray
+        elif data['code'] == 590003:
+            res["success"] = False
+            res["code"] = 500
+            res["message"] = "API Error: Permission Denied, Please contact us!"
+        else:
+            res["success"] = False
+            res["code"] = 500
+            res["message"] = "API Error, Please contact us!" 
+    except Exception as err:
+        print (err)
+        res["success"] = False
+        res["code"] = 500
+        res["message"] = "Unexpected API Error, Please contact us!" 
+    # print("res", res)
+    return res
+
+def getUrl(data):
+    if isinstance(data, str):
+        res = config.DEFAULT_STREAM_PROTOCOL + ":"+data
+    elif isinstance(data, list):
+        res = []
+        for item in data:
+            res.append(config.DEFAULT_STREAM_PROTOCOL + ":"+item)
+    else:
+        res = "Url not found"
+    return res
 

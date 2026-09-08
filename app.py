@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from flask import Flask, request
 
 import config
-from iopgps_service import IopgpsError, get_cached_stream_data, get_playback_data
+from iopgps_service import IopgpsError, get_cached_stream_data, get_playback_data,get_event_list
 from log_store import respond
 
 app = Flask(__name__)
@@ -48,7 +48,6 @@ def live_stream():
     else:
         url = ""
     return respond(stream_data['success'], stream_data['code'], stream_data['message'], body, ip_address,request_time, cache_hit=cache_hit, data=url)
-
 
 @app.route("/api/playback", methods=["POST"])
 def playback():
@@ -99,6 +98,61 @@ def playback():
     # return _respond(True, 200, cache_hit=cache_hit, data=stream_data)
     if stream_data["success"]:
         url = stream_data["url"]
+    else:
+        url = ""
+    return respond(stream_data['success'], stream_data['code'], stream_data['message'], body, ip_address,request_time, "playback" , cache_hit=cache_hit, data=url)
+
+@app.route("/api/getEvents", methods=["GET"])
+def getEvents():
+    body = request.get_json(silent=True) or {}
+    request_time = datetime.now(timezone.utc)
+
+    accesskey = body.get("accesskey")
+    imei = body.get("imei")
+    start_date = body.get("start_date")
+    end_date = body.get("end_date")
+    fileType = body.get("file_type")
+    ip_address = request.remote_addr
+
+    # ---- Authorize the caller against OUR API ----
+    if not accesskey or accesskey not in config.VALID_ACCESS_KEYS:
+        return respond(False, 401, "Invalid or missing accesskey", body, ip_address,request_time, "event")
+
+    # ---- Validate input ----
+    if not imei:
+        return respond(False, 400, "imei is required", body, ip_address,request_time, "event")
+
+    if not fileType:
+        fileType = "image"
+
+    if fileType not in ["image", "video", "zip"]:
+        return respond(False, 400, "File_type not supported.", body, ip_address,request_time, "event")
+
+    try:
+        start_time = int(start_date)
+        end_time = int(end_date)
+    except (TypeError, ValueError):
+        msg = "start_date and end_date must be integers."
+        return respond(False, 400, msg, body, ip_address,request_time, "event")
+
+    if end_time < start_time:
+        return respond(False, 400, "end_date must be greater than or equal to start_date.", body, ip_address,request_time, "event")
+
+    if end_time - start_time > 10 * 60:
+        return respond(False, 400, "Event duration must not exceed 10 minutes.", body, ip_address,request_time, "event")
+
+    # ---- Get the stream data, reusing cached token/url where still valid ----
+    try:
+        stream_data, cache_hit = get_event_list(imei, start_time, end_time, fileType)
+    except IopgpsError as e:
+        print(f"IopgpsError: {str(e)}")
+        return respond(False, 502, "API Error, Please contact us.", body, ip_address,request_time, "playback")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return respond(False, 500, "API Error, Please contact us.", body, ip_address,request_time, "playback")
+    # return _respond(True, 200, cache_hit=cache_hit, data=stream_data)
+    if stream_data["success"]:
+        url = stream_data["alertData"]
     else:
         url = ""
     return respond(stream_data['success'], stream_data['code'], stream_data['message'], body, ip_address,request_time, "playback" , cache_hit=cache_hit, data=url)
