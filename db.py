@@ -10,13 +10,18 @@ Set config.MONGO_URI to point at your real MongoDB deployment
 """
 from pymongo import MongoClient
 
+
 import config
 
 _client = MongoClient(config.MONGO_URI, serverSelectionTimeoutMS=5000)
 db = _client[config.MONGO_DB_NAME]
-
 tokens_collection = db[config.TOKEN_COLLECTION]
 logs_collection = db[config.LOG_COLLECTION]
+
+
+newDb = _client[config.NEW_MONGO_DB_NAME]
+requestCollection = newDb[config.REQUEST_COLLECTION]
+gpsTrack = newDb[config.TRACK_COLLECTION]
 
 
 def _report_mongo_connection():

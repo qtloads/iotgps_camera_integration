@@ -42,3 +42,7 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "dashcam_service")
 TOKEN_COLLECTION = os.getenv("MONGO_TOKEN_COLLECTION", "iopgps_tokens")
 LOG_COLLECTION = os.getenv("MONGO_LOG_COLLECTION", "api_call_logs")
+
+NEW_MONGO_DB_NAME = os.getenv("NEW_MONGO_DB_NAME", "master_track")
+REQUEST_COLLECTION = os.getenv("REQUEST_COLLECTION", "requestStatus")
+TRACK_COLLECTION = os.getenv("REQUEST_COLLECTION", "gpsTrack")

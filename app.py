@@ -5,6 +5,7 @@ from flask import Flask, request
 import config
 from iopgps_service import IopgpsError, get_cached_stream_data, get_playback_data,get_event_list
 from log_store import respond
+from get_track import call_cronjob
 
 app = Flask(__name__)
 
@@ -157,6 +158,9 @@ def getEvents():
         url = ""
     return respond(stream_data['success'], stream_data['code'], stream_data['message'], body, ip_address,request_time, "playback" , cache_hit=cache_hit, data=url)
 
+# call_cronjob()
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
+    
