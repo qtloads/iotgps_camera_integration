@@ -41127,19 +41127,19 @@ def get_data(payload):
   final_req = {}
   final_req["ouid"] = payload["ouid"]
   final_req["dateRange"] = payload["dateRange"]
-  logging.info("Vehicle Number: ", payload["vehicleNo"])
-  logging.info("Daterange: ", payload["dateRange"])
+  logging.info(f"Vehicle Number: {payload["vehicleNo"]}")
+  logging.info(f"Daterange: {payload["dateRange"]}")
   try:
       response = requests.post(
           url,
           headers=headers,
           data=json.dumps(final_req)
       )
-      logging.info("Status Code:", response.status_code)
+      logging.info(f"Status Code: {response.status_code}")
       logging.info(f"Response Time :-----------------> {response.elapsed.total_seconds():.3f} seconds")
       responseData = response.json()
   except Exception as e:
-      logging.error("Error:", str(e))
+      logging.error(f"Error: {str(e)}")
       payload = []
   return responseData
 
@@ -41227,7 +41227,7 @@ def processRequest(veh_req):
                   }
               )
       except Exception as err:
-          logging.error("Exception-3 : ",err)
+          logging.error(f"Exception-3 : {err}")
           db.requestCollection.update_one(
               {"_id": reqId},
               {"$set": 
@@ -41249,9 +41249,9 @@ def get_request_list():
           try:
               processRequest(veh_req)
           except Exception as err:
-              logging.error("Exception-2 : ",err)
+              logging.error(f"Exception-2 : {err}")
   except Exception as err:
-      logging.error("Exception-1 : ",err)
+      logging.error(f"Exception-1 : {err}")
       pass
 
 def get_today_data():
