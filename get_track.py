@@ -41127,8 +41127,8 @@ def get_data(payload):
   final_req = {}
   final_req["ouid"] = payload["ouid"]
   final_req["dateRange"] = payload["dateRange"]
-  logging.info(f"Vehicle Number: {payload["vehicleNo"]}")
-  logging.info(f"Daterange: {payload["dateRange"]}")
+  logging.info(f"Vehicle Number: {payload['vehicleNo']}")
+  logging.info(f"Daterange: {payload['dateRange']}")
   try:
       response = requests.post(
           url,
