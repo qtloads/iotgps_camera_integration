@@ -45,4 +45,4 @@ LOG_COLLECTION = os.getenv("MONGO_LOG_COLLECTION", "api_call_logs")
 
 NEW_MONGO_DB_NAME = os.getenv("NEW_MONGO_DB_NAME", "master_track")
 REQUEST_COLLECTION = os.getenv("REQUEST_COLLECTION", "requestStatus")
-TRACK_COLLECTION = os.getenv("REQUEST_COLLECTION", "gpsTrack")
+TRACK_COLLECTION = os.getenv("TRACK_COLLECTION", "gpsTrack")
