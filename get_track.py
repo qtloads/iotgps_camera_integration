@@ -41210,7 +41210,7 @@ def processRequest(veh_req):
           veh_data = get_data(req)
           stsCode =  veh_data.get("code")
           dataLen =  veh_data.get("data")
-          logger.info("Data Length", len(dataLen))
+          logger.info(f"Data Length: {len(dataLen)}")
           if stsCode == 200 and len(dataLen) > 0:
               saveResponse(dataLen, reqId)
           else:
@@ -41275,7 +41275,8 @@ def get_today_data():
       veh_data = get_data(req)
       stsCode =  veh_data.get("code")
       dataLen =  veh_data.get("data")
-      logger.info("Data Length", len(dataLen))
+      # logger.info("Data Length", len(dataLen))
+      logger.info(f"Data Length: {len(dataLen)}")
       if stsCode == 200 and len(dataLen) > 0:
           saveResponse(dataLen, "No_Entry")
       else:
