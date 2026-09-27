@@ -41284,10 +41284,16 @@ def get_today_data():
       time.sleep(1)
 
 def call_cronjob():
-  print("Today : ", datetime.now())
   while ALL_DATA:
-      get_request_list()
-      time.sleep(BATCH_WAIT)
+    today = datetime.now()
+    date_range = (
+        f"{today.strftime('%d/%m/%Y')} 00:00 - "
+        f"{today.strftime('%d/%m/%Y')} 23:59"
+    )
+    logging.info(f"Current date : {today.strftime('%d/%m/%Y')}")
+    logging.info(f"Date range  : {date_range}")
+    get_request_list()
+    time.sleep(BATCH_WAIT)
 
 
 # call_cronjob()
