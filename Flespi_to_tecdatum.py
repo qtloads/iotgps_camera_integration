@@ -26,10 +26,15 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
+from dotenv import load_dotenv
+
+load_dotenv()  # reads .env in the current working directory (no-op if absent)
+
+
 # --------------------------------------------------------------------------
 # Configuration
 # --------------------------------------------------------------------------
-FLESPI_TOKEN = os.getenv("FLESPI_TOKEN", "6hzvkHecnRIKGfzQ6ImqelwhIe92B0GPpX6A6APfcMxklgMbl20zsegjoQUNsjia")
+FLESPI_TOKEN = os.getenv("FLESPI_TOKEN")
 
 DEVICE_ID = os.getenv("DEVICE_ID", "9117737")
 
@@ -184,7 +189,7 @@ def main() -> None:
 
     log.info("Starting: device=%s interval=%ss tz=%s skip_duplicates=%s",
              DEVICE_ID, POLL_INTERVAL, DISPLAY_TZ, SKIP_DUPLICATES)
-    log.info(f"FLESPI TOKEN : {FLESPI_TOKEN}")
+    # log.info(f"FLESPI TOKEN : {FLESPI_TOKEN}")
     state = {}
     next_run = time.monotonic()
 
