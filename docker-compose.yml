@@ -31,6 +31,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  flespi-tecdatum-worker:
+    image: 359703527435.dkr.ecr.ap-south-1.amazonaws.com/iotgps-camera-integration:${IMAGE_TAG:-latest}
+    container_name: flespi-tecdatum-worker
+    restart: unless-stopped
+    command: ["python", "-c", "import Flespi_to_tecdatum; Flespi_to_tecdatum.main()"]
+    mem_limit: 300m
+    mem_reservation: 100m
+    cpus: "0.5"
+    networks:
+      - avls
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   avls:
     external: true
